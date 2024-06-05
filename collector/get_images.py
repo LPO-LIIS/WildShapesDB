@@ -1,71 +1,76 @@
 import os
 import time
+import base64
 import requests
-from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
+from PIL import Image
+from io import BytesIO
+from tqdm import tqdm
 
-# Configurações do Selenium
-def init_driver():
-    options = Options()
-    options.headless = True  # Executa o navegador em modo headless (sem interface gráfica)
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    return driver
+from utils import load_strings, generate_queries, init_driver
 
-# Função para buscar e baixar imagens
-def fetch_images(query):
+
+def fetch_images_by_search(search_query):
     driver = init_driver()
     try:
-        # Realiza a busca no Google Imagens
-        driver.get('https://images.google.com/')
-        search_box = driver.find_element(By.NAME, 'q')
-        search_box.send_keys(query)
-        search_box.send_keys(Keys.RETURN)
-        time.sleep(2)  # Aguarda os resultados carregarem
+        # Extract the class from the query for subfolder creation
+        query_parts = search_query.split()
+        cls = query_parts[1] if len(query_parts) > 1 else "unknown_class"
 
-        # Filtra por licença livre para uso
-        tools_button = driver.find_element(By.XPATH, "//div[@aria-label='Ferramentas']")
-        tools_button.click()
-        time.sleep(1)
-        usage_rights_button = driver.find_element(By.XPATH, "//span[text()='Direitos de uso']")
-        usage_rights_button.click()
-        time.sleep(1)
-        creative_commons_button = driver.find_element(By.XPATH, "//span[text()='Creative Commons licenses']")
-        creative_commons_button.click()
-        time.sleep(2)  # Aguarda os resultados filtrados
+        # Replace spaces with plus signs
+        search_query = search_query.replace(" ", "+")
 
-        # Captura a primeira linha de imagens
-        images = driver.find_elements(By.XPATH, "//div[@id='islrg']//div[@class='islrc']/div[@class='isv-r']")
-        first_row_images = images[:5]  # Supondo que a primeira linha tenha 5 imagens
+        # Navigate to DuckDuckGo Images
+        driver.get(
+            f"https://duckduckgo.com/?q={search_query}&t=h_&iar=images&iax=images&ia=images"
+        )
 
-        # Cria um diretório para armazenar as imagens
-        if not os.path.exists('images'):
-            os.makedirs('images')
+        # Find all the images on the page
+        images = driver.find_elements(By.CSS_SELECTOR, "img.tile--img__img")
 
-        # Baixa e armazena as imagens
-        for idx, img in enumerate(first_row_images):
+        # Create a directory for the class to store the images
+        class_dir = os.path.join("images", cls)
+        if not os.path.exists(class_dir):
+            os.makedirs(class_dir)
+
+        # Download and store the images
+        for idx, image in enumerate(images[:2]):
             try:
-                img_url = img.find_element(By.TAG_NAME, 'img').get_attribute('src')
-                img_data = requests.get(img_url).content
-                with open(f'images/{query}_image_{idx+1}.jpg', 'wb') as handler:
-                    handler.write(img_data)
-                print(f'Imagem {idx+1} baixada com sucesso para a query "{query}".')
+                img_url = image.get_attribute("src")
+
+                # Dealing with base64 encoded images
+                if img_url.startswith("data:image"):
+                    img_data = img_url.split(",")[1]
+                    img_data = base64.b64decode(img_data)
+                else:
+                    img_data = requests.get(img_url).content
+                # Open image and resize
+                with BytesIO(img_data) as img_buffer:
+                    with Image.open(img_buffer) as img:
+                        resized_img = img.resize((64, 64))
+                        resized_img.save(
+                            f"{class_dir}/{search_query}_image_{idx+1}.jpg"
+                        )
             except Exception as e:
-                print(f'Erro ao baixar a imagem {idx+1} para a query "{query}": {e}')
-    finally:
-        driver.quit()
+                print(
+                    f'Error downloading image {idx+1} for the query "{search_query}": {e}'
+                )
+    except Exception as e:
+        print(f'Error searching image for query "{search_query}": {e}')
 
 if __name__ == "__main__":
-    # Lista de consultas (queries)
-    queries = [f'query_{i}' for i in range(10000)]
+    # Load queries from the JSON file
+    json_file = r"collector\string_data.json"
+    adjectives, classes, nouns, contexts = load_strings(json_file)
 
-    # Define o número de processos a serem utilizados
-    num_processes = 8  # Ajuste este valor conforme necessário
+    # Generate queries
+    queries = generate_queries(adjectives, classes, nouns, contexts)
 
-    # Cria um pool de processos e executa as consultas em paralelo
+    # Define the number of processes to be used
+    num_processes = cpu_count()
+
+    # Create a pool of processes and execute the queries in parallel
     with Pool(num_processes) as pool:
-        pool.map(fetch_images, queries)
+        for _ in tqdm(pool.imap(fetch_images_by_search, queries), total=len(queries), desc="Processing Queries"):
+            pass

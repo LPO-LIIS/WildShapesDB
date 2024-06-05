@@ -1,0 +1,149 @@
+Objetos por letra:
+A:abajur, almofada, antena, aquário, armário, ar-condicionado, aparador, assadeira, aspirador, açucareiro, agenda, alicate, aparador de livros, adesivo, apagador, apontador
+B:baú, borracha, bolsa, boneca, bola, bandeira, brochura, bastão, bisnaga, bolacha, botão, batom, bateria, brinquedo, balde
+C:caderno, cadeira, caixa, calculadora, calendário, caneca, caneta, carimbo, cartaz, cartolina, celular, chave, chaveiro, chapéu, chinelo, cama, carteira, cesto, copo, capinha, cartucho
+D:dicionário, diário, dominó, despertador, disjuntor, disco, desodorante
+E:estojo, envelope, esponja, extintor, enfeite, esquadro, engradado, etiqueta, espátula, enciclopédia, escova
+F:frasco, filtro, folha, frigideira, fax, fechadura, ficha, fone, farol, fivela, fita, flauta, ferro, fruta
+G:garrafa, giz, grampeador, galão, gravador, gaiola, guache
+H:hidratante, halteres
+I:impressora, interruptor, isqueiro, ímã, isopor, isca, interfone
+J:jarra, joystick, joaninha, joelheira, joia
+K:ketchup, kaleidoscópio, kiwi, kayak, 
+L:lápis, lanterna, lâmpada, livro, lousa, lixadeira, lustre, lixeira, luminária, lapiseira, luva, lancheira, lupa, lata, lavadora, liquidificador, 
+M:mochila, mesa, mouse, martelo, marcador, maleta, maçaneta, máquina, móvel, 
+N:nicho, neve, notebook, 
+O:ovo, ostra, osso, ornamento, opala, 
+P:panela, prato, pote, pincel, poltrona, porta, papelão, pilha, pão, pedra
+Q:quadro, quebra-cabeça, queijo
+R:régua, rádio, relógio, rodo, roleta, recipiente, roda, remo
+S:sofá, sabonete, saco, saleiro, saca-rolha, sino, seringa
+T:tampa, taça, tabuleiro, telefone, teclado, tubo, troféu, tábua, termômetro, tijolo, televisão, tambor, tenda, tanque, tapete
+U:urna, umidificador
+V:vaso, vidro, vitrola, videogame, ventilador, válvula
+W:walkie-talkie, webcam
+X:xícara
+Y:yo-yo
+Z:zíper
+
+Classes bidimensionais:
+quadrado
+retangular
+triangular
+circular
+elíptico
+paralelogramo 
+losangular
+trapezoidal     
+pentagonal
+hexagonal
+
+Classes tridimensionales:
+cúbico
+paralelepipédico
+piramidal
+prismático
+esférico
+cilíndrico
+cônico
+tetraédrico
+
+Adjetivos por letra:
+A:acrílico, adorável, afável, alegre, almofadado, amarelo, amassado, antigo, argiloso, artificial, atraente, azul
+B:bonito, brilhante, branco, bege, bicolor, belo
+C:cinzento, clássico, claro, colorido, criativo
+D:delicado, desbotado, deslumbrante, divertido, dourado
+E:elegante, empoeirado, encharcado, enegrecido, enferrujado, envelhecido, esbranquiçado, escuro
+F:fofo, fosco, frio
+G:gigante, genuíno, gélido
+H:horizontal
+I:iluminado, ilustre, imenso, imperfeito, incolor, irregular
+J:
+K:
+L:laranja, lilás, luminoso, listrado, luxuoso
+M:magenta, marrom, manchado, metálico, molhado, monocromático, mofado
+N:negro, neutro, nublado
+O:opaco
+P:pequeno, perolado, plástico, platinado, prateado, preto, púrpura
+Q:quente, quebrado
+R:radiante, regular, róseo, rubro, roxo, rústico
+S:simples, sombrio, sólido, suave, selvagem
+T:tingido, transparente
+U:urbano, úmido
+V:verde, vermelho, vitrificado
+W:
+X:
+Y:
+Z:
+
+Lista de contextos:
+em casa
+na escola
+no escritório
+na cozinha
+no banheiro
+no quarto
+na sala de estar
+no jardim
+na garagem
+na lavanderia
+no porão
+no sótão
+na biblioteca
+na sala de aula
+no laboratório
+na cantina
+na sala de música
+na sala de informática
+no pátio
+no auditório
+na quadra de esportes
+na oficina
+na brinquedoteca
+na sala de estudos
+na sala de reuniões
+na recepção
+na sala dos professores
+na sala de arte
+no estúdio
+na sala de ciências
+no refeitório
+no hall de entrada
+na área de serviço
+na varanda
+no corredor
+na sala de jogos
+no depósito
+no estacionamento
+na área de lazer
+no campo de futebol
+na sala de estar
+no quintal
+na área externa
+no closet
+na academia
+no salão de festas
+na sacada
+na sala de projeção
+no mezanino
+na casa de máquinas
+no espaço gourmet
+na biblioteca escolar
+no laboratório de ciências
+na sala de vídeo
+no laboratório de informática
+na sala de recursos
+na sala de tecnologia
+na área de convivência
+na sala de leitura
+na sala de pesquisa
+na sala de coordenação
+na diretoria
+na secretaria
+na sala de espera
+no centro de estudos
+na sala de conferências
+na sala de treinamento
+na área de recepção
+na área administrativa
+na sala de entrevistas

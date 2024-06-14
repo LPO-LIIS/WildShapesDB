@@ -5,24 +5,24 @@
 - [X] Identify data sources: Determine the websites or platforms that have the desired images, such as image banks, retail sites, e-commerce, etc.
 
 ### 2. Planning
-- [ ] Establish a scraping plan: Decide which sites will be targeted, which specific pages, and what types of images will be collected.
-- [ ] Verify legality and ethics: Ensure that scraping is allowed on the target sites and that you comply with the terms of service and privacy regulations.
+- [X] Establish a scraping plan: Decide which sites will be targeted, which specific pages, and what types of images will be collected.
+- [X] Verify legality and ethics: Ensure that scraping is allowed on the target sites and that you comply with the terms of service and privacy regulations.
 
 ### 3. Tools and Technologies
-- [ ] Choose scraping tools: Use tools such as BeautifulSoup, Scrapy, Selenium, or Puppeteer.
-- [ ] Set up the development environment: Install Python, necessary libraries, and configure IDEs such as VSCode or Jupyter Notebook.
+- [X] Choose scraping tools: Use tools such as BeautifulSoup, Scrapy, Selenium, or Puppeteer.
+- [X] Set up the development environment: Install Python, necessary libraries, and configure IDEs such as VSCode or Jupyter Notebook.
 
 ### 4. Scraper Implementation
-- [ ] Develop the scraper:
-  - [ ] Use scraping libraries (BeautifulSoup/Scrapy) to extract URLs of the images.
-  - [ ] Use Selenium or Puppeteer for sites with dynamic content.
-- [ ] Extract image URLs: Search for `<img>` tags or other HTML tags where the images are located.
-- [ ] Download Images: Use the `requests` or `urllib` library to download the images and save them locally or in a cloud storage service.
+- [X] Develop the scraper:
+  - [X] Use scraping libraries (BeautifulSoup/Scrapy) to extract URLs of the images.
+  - [X] Use Selenium or Puppeteer for sites with dynamic content.
+- [X] Extract image URLs: Search for `<img>` tags or other HTML tags where the images are located.
+- [X] Download Images: Use the `requests` or `urllib` library to download the images and save them locally or in a cloud storage service.
 
 ### 5. Data Storage
-- [ ] Organize the images: Create an organized folder structure to store images by geometric shape categories (spheres, cubes, cylinders, etc.).
-- [ ] Metadata: Collect and store relevant information (title, description, tags, collection date, source).
-- [ ] Database: Use a database (SQL or NoSQL) to store metadata and image paths.
+- [X] Organize the images: Create an organized folder structure to store images by geometric shape categories (spheres, cubes, cylinders, etc.).
+- [O] Metadata: Collect and store relevant information (title, description, tags, collection date, source).
+- [O] Database: Use a database (SQL or NoSQL) to store metadata and image paths.
 
 ### 6. Cleaning and Filtering
 - [ ] Remove duplicates: Implement techniques to identify and remove duplicate images.

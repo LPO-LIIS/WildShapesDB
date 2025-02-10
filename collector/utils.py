@@ -1,5 +1,8 @@
 import json
+import os
+import subprocess
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from PIL import Image
 from io import BytesIO
 import random
@@ -49,15 +52,25 @@ def init_driver():
     options.add_argument('--headless')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--disable-features=InterestCohort")
-    options.add_argument('--disable-gpu')
+    #options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     options.add_argument('--log-level=3')
+    options.add_argument("--silent")
 
     # Escolha um User-Agent aleatório
     user_agent = random.choice(user_agents)
-    options.add_argument(f'user-agent=20.235.159.154:80')
+    options.add_argument(f'user-agent={user_agent}')
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-    driver = webdriver.Chrome(options=options)
+    # Redirecionar saída do ChromeDriver para um arquivo nulo
+    service = Service()
+    service.creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0  # No Windows, oculta a janela de terminal
+    
+    # Redireciona saída de logs para os.devnull
+    service.log_output = open(os.devnull, 'w')
+
+    # Inicializar o WebDriver
+    driver = webdriver.Chrome(service=service, options=options)
     return driver
 
 

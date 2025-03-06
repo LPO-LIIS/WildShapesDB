@@ -12,7 +12,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 def create_dataloaders(
     data_dir,
     batch_size=32,
-    num_workers=4,
+    num_workers=12,
     pin_memory=True,
     k_fold=5,
     load_best_fold=False,

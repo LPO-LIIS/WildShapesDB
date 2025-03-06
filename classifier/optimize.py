@@ -86,7 +86,7 @@ def objective(trial):
             val_loader,
             optimizer=optimizer,
             scheduler=scheduler,
-            num_epochs=3,
+            num_epochs=10,
             accumulation_steps=accumulation_steps,
         )
 

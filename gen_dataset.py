@@ -10,7 +10,7 @@ if __name__ == "__main__":
     adjectives, classes, nouns = load_strings(json_file)
 
     # Generate queries
-    num_queries = 3000
+    num_queries = 6000
     queries = generate_queries(adjectives, classes, nouns, num_queries)
 
     # Define the number of processes to be used

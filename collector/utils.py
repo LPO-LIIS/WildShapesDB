@@ -76,51 +76,55 @@ def init_driver():
 
 def load_strings(json_file):
     """
-    Loads adjectives, classes, nouns, and contexts from a JSON file.
+    Loads adjectives, classes, and modifiers from a JSON file.
 
     Parameters:
     json_file (str): The path to the JSON file containing the strings.
 
     Returns:
-    tuple: A tuple containing four lists:
+    tuple: A tuple containing three lists:
         - adjectives (list): A list of adjectives.
-        - classes (list): A list of classes.
-        - nouns (list): A list of nouns.
-        - contexts (list): A list of contexts.
+        - classes (dict): A dictionary where keys are class names and values are lists of related nouns.
+        - modifiers (list): A list of modifiers for additional context.
     """
     with open(json_file, "r") as file:
         data = json.load(file)
         adjectives = data.get("adjectives", [])
-        classes = data.get("classes", [])
-        nouns = data.get("nouns", [])
-    return adjectives, classes, nouns
+        classes = data.get("classes", {})  # Now a dictionary {class_name: [nouns]}
+        modifiers = data.get("modifiers", [])
+    
+    return adjectives, classes, modifiers
 
 
-def generate_queries(adjectives, classes, nouns, num_queries):
+def generate_queries(adjectives, classes, modifiers, num_queries):
     """
-    Generates queries by combining adjectives, classes, nouns, and optional contexts.
+    Generates queries by combining adjectives, classes, nouns, and optional modifiers.
 
     Parameters:
     adjectives (list): A list of adjectives.
-    classes (list): A list of classes.
-    nouns (list): A list of nouns.
+    classes (dict): A dictionary where keys are class names and values are lists of nouns.
+    modifiers (list): A list of contextual modifiers.
     num_queries (int): The number of queries to generate.
 
     Returns:
     list: A list of generated queries, each being a combination of an adjective,
-          a class, and a noun, with optional context.
+          a class, and a noun, with an optional modifier.
     """
     queries = set()  # Using a set to ensure unique queries
-    total_combinations = len(adjectives) * len(classes) * len(nouns)
-
-    if num_queries > total_combinations:
-        raise ValueError("num_queries exceeds the number of unique combinations possible.")
+    class_names = list(classes.keys())  # Extract class names from the dictionary
 
     while len(queries) < num_queries:
-        noun = random.choice(nouns)
+        cls = random.choice(class_names)  # Select a geometric class
+        nouns = classes[cls]  # Get nouns associated with this class
+        if not nouns:
+            continue  # Skip if no nouns are available
+
+        noun = random.choice(nouns)  # Pick a noun from the class
         adjective = random.choice(adjectives)
-        cls = random.choice(classes)
-        queries.add(f"{adjective}+{cls}+{noun}")
+        modifier = random.choice(modifiers) if random.random() < 0.5 else ""  # 50% chance of adding a modifier
+
+        query = f"{adjective}+{cls}+{noun}" + (f"+{modifier}" if modifier else "")
+        queries.add(query)
 
     return list(queries)
 

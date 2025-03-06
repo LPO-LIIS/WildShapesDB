@@ -2,7 +2,7 @@ import torch
 import random
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, Dataset
 from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import os
@@ -18,6 +18,48 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)  # If using GPU
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False  # Ensure deterministic behavior
+
+class CachedDataset(Dataset):
+    def __init__(self, dataset, transform=None, cache_dir="cache", use_disk_cache=False):
+        """
+        Args:
+            dataset (Dataset): O dataset original (por exemplo, Subset).
+            transform (callable): Transformações a serem aplicadas às imagens.
+            cache_dir (str): Diretório para armazenar o cache em disco.
+            use_disk_cache (bool): Se True, usa cache em disco; caso contrário, usa cache em memória.
+        """
+        self.dataset = dataset
+        self.transform = transform
+        self.cache_dir = cache_dir
+        self.use_disk_cache = use_disk_cache
+        self.cache = {}  # Cache em memória
+
+        if use_disk_cache:
+            os.makedirs(cache_dir, exist_ok=True)
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        # Verifica se o item já está em cache
+        if idx in self.cache:
+            return self.cache[idx]
+
+        # Carrega o item do dataset original
+        image, label = self.dataset[idx]
+
+        # Aplica as transformações, se houver
+        if self.transform:
+            image = self.transform(image)
+
+        # Armazena no cache
+        if self.use_disk_cache:
+            cache_path = os.path.join(self.cache_dir, f"{idx}.pt")
+            torch.save((image, label), cache_path)
+        else:
+            self.cache[idx] = (image, label)
+
+        return image, label
 
 def create_dataloaders(
     data_dir,
@@ -110,6 +152,8 @@ def create_dataloaders(
 
         train_dataset = Subset(dataset, best_train_indices)
         val_dataset = Subset(dataset, best_val_indices)
+        train_dataset = CachedDataset(Subset(dataset, best_train_indices), transform=train_transform)
+        val_dataset = CachedDataset(Subset(dataset, best_val_indices), transform=eval_transform)
 
         # Apply transformations
         train_dataset.dataset.transform = train_transform
@@ -137,8 +181,17 @@ def create_dataloaders(
     targets = [dataset.targets[i] for i in train_val_indices]
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(train_val_indices, targets)):
-        train_dataset = Subset(dataset, [train_val_indices[i] for i in train_idx])
-        val_dataset = Subset(dataset, [train_val_indices[i] for i in val_idx])
+        # Cria os datasets de treino e validação com cache
+        train_dataset = CachedDataset(
+            Subset(dataset, [train_val_indices[i] for i in train_idx]),
+            transform=train_transform,
+            use_disk_cache=False,
+        )
+        val_dataset = CachedDataset(
+            Subset(dataset, [train_val_indices[i] for i in val_idx]),
+            transform=eval_transform,
+            use_disk_cache=False,
+        )
 
         # Apply transformations
         train_dataset.dataset.transform = train_transform

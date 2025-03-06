@@ -37,7 +37,7 @@ def objective(trial):
     )  # Added 8 for more gradient accumulation
 
     # K-Fold Validation Setup
-    kfold = 9  # 9-Fold Stratified
+    kfold = 5  # 5-Fold Stratified
     best_f1 = 0.0
     best_fold = None
     best_train_indices = None
@@ -83,7 +83,7 @@ def objective(trial):
             val_loader,
             optimizer=optimizer,
             scheduler=scheduler,
-            num_epochs=5,
+            num_epochs=10,
             accumulation_steps=accumulation_steps,
         )
 

@@ -134,7 +134,7 @@ def create_dataloaders(
 
     # Create test dataset using precomputed indices
     test_dataset = Subset(dataset, test_indices)
-    test_dataset.dataset.transform = eval_transform  # Apply evaluation transformations
+    test_dataset = CachedDataset(test_dataset, transform=eval_transform)  # Aplica transformações aqui
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size,
@@ -150,14 +150,15 @@ def create_dataloaders(
 
         print("✅ Loading the best fold found during optimization...")
 
-        train_dataset = Subset(dataset, best_train_indices)
-        val_dataset = Subset(dataset, best_val_indices)
-        train_dataset = CachedDataset(Subset(dataset, best_train_indices), transform=train_transform)
-        val_dataset = CachedDataset(Subset(dataset, best_val_indices), transform=eval_transform)
-
-        # Apply transformations
-        train_dataset.dataset.transform = train_transform
-        val_dataset.dataset.transform = eval_transform
+        # Cria os datasets de treino e validação com cache
+        train_dataset = CachedDataset(
+            Subset(dataset, best_train_indices),
+            transform=train_transform,
+        )
+        val_dataset = CachedDataset(
+            Subset(dataset, best_val_indices),
+            transform=eval_transform,
+        )
 
         train_loader = DataLoader(
             train_dataset,
@@ -185,17 +186,11 @@ def create_dataloaders(
         train_dataset = CachedDataset(
             Subset(dataset, [train_val_indices[i] for i in train_idx]),
             transform=train_transform,
-            use_disk_cache=False,
         )
         val_dataset = CachedDataset(
             Subset(dataset, [train_val_indices[i] for i in val_idx]),
             transform=eval_transform,
-            use_disk_cache=False,
         )
-
-        # Apply transformations
-        train_dataset.dataset.transform = train_transform
-        val_dataset.dataset.transform = eval_transform
 
         train_loader = DataLoader(
             train_dataset,
@@ -215,6 +210,7 @@ def create_dataloaders(
         yield fold, train_loader, val_loader, [
             train_val_indices[i] for i in train_idx
         ], [train_val_indices[i] for i in val_idx], test_loader
+
 
 
 def split_dataset(data_dir, test_split=0.1, save_dir="dataset_splits"):

@@ -26,8 +26,9 @@ def train_model(
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()
 
-    # Mixed Precision Training (AMP)
-    scaler = GradScaler()
+    # Habilita Mixed Precision Training apenas se houver GPU
+    use_amp = device.type == "cuda"
+    scaler = GradScaler(enabled=use_amp)
 
     # Early stopping and checkpoint management
     best_val_f1 = 0.0
@@ -47,11 +48,10 @@ def train_model(
         )
 
         for batch_idx, (images, labels) in enumerate(train_loader_tqdm):
-            images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+            images, labels = images.to(device), labels.to(device)  # Removido non_blocking
 
-            optimizer.zero_grad()  # Corrected position
-
-            with autocast(device_type="cuda"):
+            # Usa autocast apenas se AMP estiver habilitado
+            with autocast(device_type=device.type, enabled=use_amp):
                 outputs = model(images)
                 loss = criterion(outputs, labels)
 
@@ -79,9 +79,10 @@ def train_model(
         model.eval()
         with torch.no_grad():
             for images, labels in val_loader:
-                images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+                images, labels = images.to(device), labels.to(device)  # Removido non_blocking
 
-                with autocast(device_type="cuda"):
+                # Usa autocast apenas se AMP estiver habilitado
+                with autocast(device_type=device.type, enabled=use_amp):
                     outputs = model(images)
                     loss = criterion(outputs, labels)
 
@@ -113,20 +114,13 @@ def train_model(
         writer.add_scalar("Acc/Validation", val_acc, epoch)
         writer.add_scalar("Learning Rate", scheduler.get_last_lr()[0], epoch)
 
-        # Save only the top 3 best models
+        # Save only the best model
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
             no_improve_epochs = 0
             model_path = os.path.join(checkpoint_dir, f"best_model_f1.pth")
             torch.save(model.state_dict(), model_path)
             tqdm.write(f"🔹 New best model saved: {model_path} (F1: {best_val_f1:.4f})")
-
-            # Remove older models, keeping only the 3 best
-            models = sorted(glob.glob(os.path.join(checkpoint_dir, "best_model_f1_*.pth")), 
-                            key=lambda x: float(re.search(r"f1_(\d+\.\d+)", x).group(1)), 
-                            reverse=True)
-            for old_model in models[3:]:  # Keep only top 3
-                os.remove(old_model)
 
         else:
             no_improve_epochs += 1

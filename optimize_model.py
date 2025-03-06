@@ -14,7 +14,7 @@ if __name__ == "__main__":
     if not os.path.exists("dataset_splits"):
         split_dataset(dataset_dir)
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=100)  # Run 30 trials
+    study.optimize(objective, n_trials=100)  # Run 100 trials
 
     # Save the best hyperparameters
     best_params = study.best_params

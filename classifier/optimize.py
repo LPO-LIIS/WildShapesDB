@@ -1,10 +1,12 @@
 import torch
 import torch.optim as optim
+import os
+import pandas as pd  # For saving history
+
 from classifier.model import Shape2DClassifier
 from classifier.training import train_model
 from classifier.data import create_dataloaders
-from classifier.evaluate import evaluate_model
-import os
+from classifier.evaluate import evaluate_model  # For F1 Score
 
 
 def objective(trial):
@@ -24,7 +26,7 @@ def objective(trial):
         "batch_size", [64, 128, 256, 512]
     )  # Added 16 and 256 for more variability
     learning_rate = trial.suggest_float(
-        "learning_rate", 1e-6, 1e-1, log=True
+        "learning_rate", 1e-6, 1e-2, log=True
     )  # Wider range for learning rate tuning
     optimizer_name = trial.suggest_categorical(
         "optimizer", ["Adam", "AdamW", "SGD", "RMSprop", "Adagrad"]
@@ -42,6 +44,7 @@ def objective(trial):
     best_fold = None
     best_train_indices = None
     best_val_indices = None
+    metrics_history = []  # Stores metrics for this trial
 
     for (
         fold,
@@ -54,7 +57,7 @@ def objective(trial):
         print(f"🔄 Training Fold {fold+1}/{kfold}")
 
         # Initialize the model
-        model = Shape2DClassifier(num_classes=9).cuda()
+        model = Shape2DClassifier(num_classes=9)
 
         # Select optimizer
         momentum = (
@@ -83,18 +86,42 @@ def objective(trial):
             val_loader,
             optimizer=optimizer,
             scheduler=scheduler,
-            num_epochs=10,
+            num_epochs=3,
             accumulation_steps=accumulation_steps,
         )
 
         # Evaluate the model on the validation set (optimized inference mode)
         with torch.inference_mode():
             metrics = evaluate_model(best_model, val_loader)
-        val_f1 = metrics["F1 Score"]  # Extracting F1 Score for optimization
+
+        val_f1 = metrics["F1 Score"]
+        val_acc = metrics["Accuracy"]
+        val_precision = metrics["Precision"]
+        val_recall = metrics["Recall"]
 
         print(f"🔍 Fold {fold+1}/{kfold} - F1 Score: {val_f1:.4f}")
 
-        # Save the best fold
+        # Store metrics for later analysis
+        metrics_history.append({
+            "trial": trial.number,
+            "fold": fold + 1,
+            "F1 Score": val_f1,
+            "Accuracy": val_acc,
+            "Precision": val_precision,
+            "Recall": val_recall,
+            "Batch Size": batch_size,
+            "Learning Rate": learning_rate,
+            "Optimizer": optimizer_name,
+            "Scheduler": scheduler_name,
+            "Accumulation Steps": accumulation_steps,
+            "Weight Decay": weight_decay,
+            "Momentum": momentum if momentum is not None else 0,
+        })
+
+        # Report progress to Optuna (tracks optimization)
+        trial.report(val_f1, fold)
+
+        # Save best fold
         if val_f1 > best_f1:
             best_f1 = val_f1
             best_fold = fold
@@ -106,5 +133,9 @@ def objective(trial):
     torch.save(best_val_indices, os.path.join(save_dir, "best_val_indices.pt"))
 
     print(f"✅ Best Fold: {best_fold+1}/{kfold} saved in {save_dir}")
+
+    # Save trial history as DataFrame
+    df = pd.DataFrame(metrics_history)
+    df.to_csv(f"trial_{trial.number}_history.csv", index=False)
 
     return best_f1  # Optuna will maximize this score

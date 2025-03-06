@@ -1,65 +1,13 @@
 import torch
-import random
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, Subset, Dataset
+from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import os
 from torchvision.datasets import ImageFolder
 from sklearn.model_selection import StratifiedShuffleSplit
 
-
-def set_seed(seed: int = 42):
-    """Set seed for reproducibility across numpy, torch, and random."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # If using GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # Ensure deterministic behavior
-
-class CachedDataset(Dataset):
-    def __init__(self, dataset, transform=None, cache_dir="cache", use_disk_cache=False):
-        """
-        Args:
-            dataset (Dataset): O dataset original (por exemplo, Subset).
-            transform (callable): Transformações a serem aplicadas às imagens.
-            cache_dir (str): Diretório para armazenar o cache em disco.
-            use_disk_cache (bool): Se True, usa cache em disco; caso contrário, usa cache em memória.
-        """
-        self.dataset = dataset
-        self.transform = transform
-        self.cache_dir = cache_dir
-        self.use_disk_cache = use_disk_cache
-        self.cache = {}  # Cache em memória
-
-        if use_disk_cache:
-            os.makedirs(cache_dir, exist_ok=True)
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        # Verifica se o item já está em cache
-        if idx in self.cache:
-            return self.cache[idx]
-
-        # Carrega o item do dataset original
-        image, label = self.dataset[idx]
-
-        # Aplica as transformações, se houver
-        if self.transform:
-            image = self.transform(image)
-
-        # Armazena no cache
-        if self.use_disk_cache:
-            cache_path = os.path.join(self.cache_dir, f"{idx}.pt")
-            torch.save((image, label), cache_path)
-        else:
-            self.cache[idx] = (image, label)
-
-        return image, label
 
 def create_dataloaders(
     data_dir,
@@ -115,9 +63,6 @@ def create_dataloaders(
             ),
             transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 0.5)),
             transforms.ToTensor(),
-            transforms.RandomErasing(
-                p=0.2, scale=(0.02, 0.1), ratio=(0.5, 2.0), value=0
-            ),
             normalize,
         ]
     )
@@ -134,7 +79,7 @@ def create_dataloaders(
 
     # Create test dataset using precomputed indices
     test_dataset = Subset(dataset, test_indices)
-    test_dataset = CachedDataset(test_dataset, transform=eval_transform)  # Aplica transformações aqui
+    test_dataset.dataset.transform = eval_transform  # Apply evaluation transformations
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size,
@@ -150,15 +95,12 @@ def create_dataloaders(
 
         print("✅ Loading the best fold found during optimization...")
 
-        # Cria os datasets de treino e validação com cache
-        train_dataset = CachedDataset(
-            Subset(dataset, best_train_indices),
-            transform=train_transform,
-        )
-        val_dataset = CachedDataset(
-            Subset(dataset, best_val_indices),
-            transform=eval_transform,
-        )
+        train_dataset = Subset(dataset, best_train_indices)
+        val_dataset = Subset(dataset, best_val_indices)
+
+        # Apply transformations
+        train_dataset.dataset.transform = train_transform
+        val_dataset.dataset.transform = eval_transform
 
         train_loader = DataLoader(
             train_dataset,
@@ -182,15 +124,12 @@ def create_dataloaders(
     targets = [dataset.targets[i] for i in train_val_indices]
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(train_val_indices, targets)):
-        # Cria os datasets de treino e validação com cache
-        train_dataset = CachedDataset(
-            Subset(dataset, [train_val_indices[i] for i in train_idx]),
-            transform=train_transform,
-        )
-        val_dataset = CachedDataset(
-            Subset(dataset, [train_val_indices[i] for i in val_idx]),
-            transform=eval_transform,
-        )
+        train_dataset = Subset(dataset, [train_val_indices[i] for i in train_idx])
+        val_dataset = Subset(dataset, [train_val_indices[i] for i in val_idx])
+
+        # Apply transformations
+        train_dataset.dataset.transform = train_transform
+        val_dataset.dataset.transform = eval_transform
 
         train_loader = DataLoader(
             train_dataset,
@@ -210,7 +149,6 @@ def create_dataloaders(
         yield fold, train_loader, val_loader, [
             train_val_indices[i] for i in train_idx
         ], [train_val_indices[i] for i in val_idx], test_loader
-
 
 
 def split_dataset(data_dir, test_split=0.1, save_dir="dataset_splits"):

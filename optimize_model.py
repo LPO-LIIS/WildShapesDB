@@ -10,9 +10,9 @@ from classifier.optimize import objective
 
 
 if __name__ == "__main__":
-    dataset_dir = "WildShapesDataset/images"
+    hf_dataset_name = "Horusprg/WildShapes"
     if not os.path.exists("dataset_splits"):
-        split_dataset(dataset_dir)
+        split_dataset(hf_dataset_name)
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=100)  # Run 100 trials
 

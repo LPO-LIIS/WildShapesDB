@@ -17,7 +17,7 @@ def objective(trial):
     Returns:
         float: The best F1 Score obtained during validation.
     """
-    data_dir = "WildShapesDataset/images"
+    hf_dataset_name = "Horusprg/WildShapes"
     save_dir = "dataset_splits"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -51,9 +51,8 @@ def objective(trial):
         train_loader,
         val_loader,
         train_indices,
-        val_indices,
-        _,
-    ) in create_dataloaders(data_dir, batch_size=batch_size, k_fold=kfold):
+        val_indices
+    ) in create_dataloaders(hf_dataset_name, batch_size=batch_size, k_fold=kfold):
         print(f"🔄 Training Fold {fold+1}/{kfold}")
 
         # Initialize the model

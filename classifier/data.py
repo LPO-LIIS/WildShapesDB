@@ -1,16 +1,39 @@
 import torch
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 from torch.utils.data import DataLoader, Subset
-from sklearn.model_selection import StratifiedKFold
-import numpy as np
+from datasets import load_dataset
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 import os
-from torchvision.datasets import ImageFolder
-from sklearn.model_selection import StratifiedShuffleSplit
+import numpy as np
+from PIL import Image
+
+
+class HuggingFaceDataset(torch.utils.data.Dataset):
+    """
+    Wrapper para adaptar um dataset do Hugging Face ao PyTorch Dataset.
+    Aplica transformações nas imagens conforme necessário.
+    """
+
+    def __init__(self, hf_dataset, transform=None):
+        self.dataset = hf_dataset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        idx = int(idx)
+        image = self.dataset[idx]["image"]
+        label = self.dataset[idx]["label"]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
 
 
 def create_dataloaders(
-    data_dir,
+    hf_dataset_name,
     batch_size=32,
     num_workers=12,
     pin_memory=True,
@@ -18,33 +41,26 @@ def create_dataloaders(
     load_best_fold=False,
 ):
     """
-    Creates DataLoaders for training, validation, and testing.
-
-    This function loads dataset indices from precomputed splits and applies transformations.
-    If `load_best_fold=True`, it loads the best training-validation split found during hyperparameter optimization.
-    Otherwise, it performs k-fold cross-validation on the training-validation set.
+    Cria DataLoaders para treinamento, validação e teste a partir de um dataset do Hugging Face.
 
     Args:
-        data_dir (str): Path to the dataset directory.
-        batch_size (int): Number of images per batch (default: 32).
-        num_workers (int): Number of subprocesses for data loading (default: 4).
-        pin_memory (bool): If True, enables pinned memory for faster GPU training (default: True).
-        k_fold (int): Number of folds for stratified k-fold cross-validation (default: 5).
-        load_best_fold (bool): Whether to load the best training-validation split from saved indices (default: False).
+        hf_dataset_name (str): Nome do dataset no Hugging Face (ex: "seu_usuario/seu_dataset").
+        batch_size (int): Tamanho do batch.
+        num_workers (int): Número de subprocessos para carregar os dados.
+        pin_memory (bool): Ativa pinned memory para treinamento acelerado em GPU.
+        k_fold (int): Número de folds para validação cruzada estratificada.
+        load_best_fold (bool): Se True, carrega a melhor divisão encontrada.
 
     Returns:
-        - If `load_best_fold=True`:
-            tuple: (train_loader, val_loader, test_loader)
-        - If `load_best_fold=False`:
-            generator yielding (fold, train_loader, val_loader, train_indices, val_indices, test_loader)
+        Se `load_best_fold=True`: (train_loader, val_loader, test_loader)
+        Se `load_best_fold=False`: Generator (fold, train_loader, val_loader, train_indices, val_indices, test_loader)
     """
     save_dir = "dataset_splits"
 
-    # Load precomputed dataset indices
-    train_val_indices = torch.load(os.path.join(save_dir, "train_val_indices.pt"), weights_only=True)
-    test_indices = torch.load(os.path.join(save_dir, "test_indices.pt"), weights_only=True)
+    # Carregar dataset do Hugging Face
+    dataset = load_dataset(hf_dataset_name)
 
-    # Define data transformations
+    # Normalização e transformações
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
@@ -75,33 +91,32 @@ def create_dataloaders(
         ]
     )
 
-    dataset = datasets.ImageFolder(root=data_dir)
+    # Criar datasets adaptados ao PyTorch
+    full_dataset = HuggingFaceDataset(dataset["train"], transform=eval_transform)
 
-    # Create test dataset using precomputed indices
-    test_dataset = Subset(dataset, test_indices)
-    test_dataset.dataset.transform = eval_transform  # Apply evaluation transformations
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-    )
+    # Divisão dos índices para treino/validação/teste
+    if (
+        os.path.exists(os.path.join(save_dir, "train_val_indices.pt"))
+        and load_best_fold
+    ):
+        train_val_indices = torch.load(os.path.join(save_dir, "train_val_indices.pt"))
+        test_indices = torch.load(os.path.join(save_dir, "test_indices.pt"))
 
-    if load_best_fold:
-        # Load the best fold indices found during optimization
         best_train_indices = torch.load(os.path.join(save_dir, "best_train_indices.pt"))
         best_val_indices = torch.load(os.path.join(save_dir, "best_val_indices.pt"))
 
-        print("✅ Loading the best fold found during optimization...")
+        print("✅ Carregando o melhor fold encontrado durante otimização...")
 
-        train_dataset = Subset(dataset, best_train_indices)
-        val_dataset = Subset(dataset, best_val_indices)
+        train_dataset = Subset(full_dataset, best_train_indices)
+        val_dataset = Subset(full_dataset, best_val_indices)
+        test_dataset = Subset(full_dataset, test_indices)
 
-        # Apply transformations
+        # Aplicar transformações específicas
         train_dataset.dataset.transform = train_transform
         val_dataset.dataset.transform = eval_transform
+        test_dataset.dataset.transform = eval_transform
 
+        # Criar DataLoaders
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -111,6 +126,13 @@ def create_dataloaders(
         )
         val_loader = DataLoader(
             val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+        )
+        test_loader = DataLoader(
+            test_dataset,
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,
@@ -119,15 +141,17 @@ def create_dataloaders(
 
         return train_loader, val_loader, test_loader
 
-    # Perform stratified k-fold cross-validation on the training-validation set
+    # Se não tiver divisão prévia, faz Stratified K-Fold
+    targets = [example["label"] for example in dataset["train"]]
+
     skf = StratifiedKFold(n_splits=k_fold, shuffle=True, random_state=42)
-    targets = [dataset.targets[i] for i in train_val_indices]
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(train_val_indices, targets)):
-        train_dataset = Subset(dataset, [train_val_indices[i] for i in train_idx])
-        val_dataset = Subset(dataset, [train_val_indices[i] for i in val_idx])
+    for fold, (train_idx, val_idx) in enumerate(
+        skf.split(np.zeros(len(targets)), targets)
+    ):
+        train_dataset = Subset(full_dataset, train_idx)
+        val_dataset = Subset(full_dataset, val_idx)
 
-        # Apply transformations
         train_dataset.dataset.transform = train_transform
         val_dataset.dataset.transform = eval_transform
 
@@ -146,30 +170,23 @@ def create_dataloaders(
             pin_memory=pin_memory,
         )
 
-        yield fold, train_loader, val_loader, [
-            train_val_indices[i] for i in train_idx
-        ], [train_val_indices[i] for i in val_idx], test_loader
+        yield fold, train_loader, val_loader, train_idx, val_idx
 
 
-def split_dataset(data_dir, test_split=0.1, save_dir="dataset_splits"):
+def split_dataset(hf_dataset_name, test_split=0.1, save_dir="dataset_splits"):
     """
-    Splits the dataset into Training+Validation (90%) and Testing (10%) using stratified sampling and saves the indices.
-
-    This function ensures that the class distribution remains balanced across training/validation and testing sets.
+    Divide um dataset do Hugging Face em treino, validação e teste e salva os índices.
 
     Args:
-        data_dir (str): Path to the dataset directory.
-        test_split (float): Proportion of the dataset to be used for testing (default: 0.1).
-        save_dir (str): Directory where the dataset splits will be saved (default: "dataset_splits").
-
-    Saves:
-        - `train_val_indices.pt`: Indices for the Training+Validation set (90% of the dataset).
-        - `test_indices.pt`: Indices for the Testing set (10% of the dataset).
+        hf_dataset_name (str): Nome do dataset no Hugging Face.
+        test_split (float): Proporção do conjunto de teste.
+        save_dir (str): Diretório onde salvar os índices.
     """
     os.makedirs(save_dir, exist_ok=True)
 
-    dataset = ImageFolder(root=data_dir)
-    targets = np.array(dataset.targets)  # Extract class labels from dataset
+    # Carregar dataset
+    dataset = load_dataset(hf_dataset_name)["train"]
+    targets = np.array([example["label"] for example in dataset])
 
     stratified_split = StratifiedShuffleSplit(
         n_splits=1, test_size=test_split, random_state=42
@@ -181,8 +198,8 @@ def split_dataset(data_dir, test_split=0.1, save_dir="dataset_splits"):
         train_val_indices = train_val_idx.tolist()
         test_indices = test_idx.tolist()
 
-    # Save the dataset splits
+    # Salvar divisões do dataset
     torch.save(train_val_indices, os.path.join(save_dir, "train_val_indices.pt"))
     torch.save(test_indices, os.path.join(save_dir, "test_indices.pt"))
 
-    print(f"✅ Dataset successfully split and saved in {save_dir}")
+    print(f"✅ Dataset dividido e salvo em {save_dir}")

@@ -7,13 +7,29 @@ import pandas as pd
 
 from classifier.data import split_dataset
 from classifier.optimize import objective
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True  # Evita erro de compilação
 
 
 if __name__ == "__main__":
+    # Ativar precisão otimizada para Tensor Cores na A100
+    torch.set_float32_matmul_precision('high')
+
+    # Nome fixo para o estudo no Optunaw
+    study_name = "wildshapes_optimization"
+    # Resetar o Optuna
+    storage_path = "sqlite:///optuna.db"
+    if os.path.exists(storage_path):
+        os.remove(storage_path)
+
+    print(f"Criando novo estudo: {study_name}")
+
     hf_dataset_name = "Horusprg/WildShapes"
     if not os.path.exists("dataset_splits"):
         split_dataset(hf_dataset_name)
-    study = optuna.create_study(direction="maximize")
+
+    # Criar um novo estudo do Optuna
+    study = optuna.create_study(direction="maximize", study_name=study_name, storage=storage_path)
     study.optimize(objective, n_trials=100)  # Run 100 trials
 
     # Save the best hyperparameters
@@ -49,7 +65,7 @@ if __name__ == "__main__":
         plt.ylabel("F1 Score")
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig(f"optimization_result.png", dpi=300, bbox_inches="tight")
 
     # Load final optimization history and generate plots
     final_df = pd.read_csv("optimization_history.csv")

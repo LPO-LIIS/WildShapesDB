@@ -8,6 +8,9 @@ import numpy as np
 from PIL import Image
 
 
+# Definir o dispositivo
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class HuggingFaceDataset(torch.utils.data.Dataset):
     """
     Wrapper para adaptar um dataset do Hugging Face ao PyTorch Dataset.
@@ -30,7 +33,6 @@ class HuggingFaceDataset(torch.utils.data.Dataset):
             image = self.transform(image)
 
         return image, label
-
 
 def create_dataloaders(
     hf_dataset_name,
@@ -161,6 +163,7 @@ def create_dataloaders(
             shuffle=True,
             num_workers=num_workers,
             pin_memory=pin_memory,
+            persistent_workers=True
         )
         val_loader = DataLoader(
             val_dataset,
@@ -168,6 +171,7 @@ def create_dataloaders(
             shuffle=False,
             num_workers=num_workers,
             pin_memory=pin_memory,
+            persistent_workers=True
         )
 
         yield fold, train_loader, val_loader, train_idx, val_idx

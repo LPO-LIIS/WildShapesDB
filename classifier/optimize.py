@@ -2,6 +2,9 @@ import torch
 import torch.optim as optim
 import os
 import pandas as pd  # For saving history
+import torch.multiprocessing as mp
+
+mp.set_start_method('spawn', force=True)
 
 from classifier.model import Shape2DClassifier
 from classifier.training import train_model
@@ -17,20 +20,21 @@ def objective(trial):
     Returns:
         float: The best F1 Score obtained during validation.
     """
+    
     hf_dataset_name = "Horusprg/WildShapes"
     save_dir = "dataset_splits"
     os.makedirs(save_dir, exist_ok=True)
 
     # Define the hyperparameter search space
     batch_size = trial.suggest_categorical(
-        "batch_size", [64, 128, 256, 512]
-    )  # Added 16 and 256 for more variability
+        "batch_size", [64, 128, 256, 384, 512]
+    )
     learning_rate = trial.suggest_float(
         "learning_rate", 1e-6, 1e-2, log=True
     )  # Wider range for learning rate tuning
     optimizer_name = trial.suggest_categorical(
-        "optimizer", ["Adam", "AdamW", "SGD", "RMSprop", "Adagrad"]
-    )  # Added RMSprop and Adagrad
+        "optimizer", ["Adam", "AdamW"]
+    )
     scheduler_name = trial.suggest_categorical(
         "scheduler", ["CosineAnnealingLR", "StepLR"]
     )  # Added ReduceLROnPlateau
@@ -59,17 +63,11 @@ def objective(trial):
         model = Shape2DClassifier(num_classes=9)
 
         # Select optimizer
-        momentum = (
-            trial.suggest_float("momentum", 0.7, 0.99)
-        )
         weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True)
 
         optimizer = {
             "Adam": optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay),
             "AdamW": optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay),
-            "SGD": optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay),
-            "RMSprop": optim.RMSprop(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay),
-            "Adagrad": optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         }[optimizer_name]
 
         # Select scheduler
@@ -114,7 +112,6 @@ def objective(trial):
             "Scheduler": scheduler_name,
             "Accumulation Steps": accumulation_steps,
             "Weight Decay": weight_decay,
-            "Momentum": momentum if momentum is not None else 0,
         })
 
         # Report progress to Optuna (tracks optimization)

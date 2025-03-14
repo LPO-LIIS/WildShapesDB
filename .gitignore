@@ -3,3 +3,4 @@ venv/
 /WildShapesDataset/
 .vscode
 /logs
+output.log

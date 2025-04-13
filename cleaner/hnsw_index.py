@@ -110,7 +110,7 @@ def detect_outliers_hnsw(
     plot_name="plot",
 ):
     """
-    Detect outliers using FAISS HNSW and Mahalanobis Distance.
+    Detect outliers using FAISS HNSW and **Local Mahalanobis Distance** (based on nearest neighbors).
 
     Parameters:
     - index (faiss.IndexHNSWFlat): FAISS index loaded.
@@ -121,59 +121,52 @@ def detect_outliers_hnsw(
     - List of detected outliers.
     """
 
-    print(f"🔍 Detecting outliers for images using FAISS HNSW...")
+    print(f"🔍 Detecting outliers for images using FAISS HNSW + Local Mahalanobis...")
 
-    # Compute FAISS k-NN search
+    # Step 1: Compute FAISS k-NN search (to find neighbors for each point)
     k = max(2, int(np.log2(len(image_names))))
     print(f"🔧 Auto-selected HNSW parameters: k={k}")
 
-    # Compute FAISS k-NN search to find nearest neighbors for each feature
     distances, indices = index.search(feature_matrix, k)
 
-    # Compute mean distance to nearest neighbors
-    mean_distances = np.mean(distances, axis=1)
+    # Step 2: Compute Local Mahalanobis Distance for each point
+    mahalanobis_distances = np.zeros(len(feature_matrix))
 
-    # Compute global mean and covariance matrix of the features
-    mean_vector = np.mean(feature_matrix, axis=0)
-    covariance_matrix = np.cov(feature_matrix, rowvar=False)
+    for i in tqdm(range(len(feature_matrix)), desc="📊 Computing Local Mahalanobis"):
+        # Get the k-nearest neighbors (including the point itself)
+        neighbors = feature_matrix[indices[i]]
+        
+        # Compute local mean and covariance
+        local_mean = np.mean(neighbors, axis=0)
+        local_cov = np.cov(neighbors, rowvar=False)
+        
+        # Regularize covariance matrix (avoid singularity)
+        epsilon = 1e-6
+        eigenvalues, eigenvectors = np.linalg.eigh(local_cov)
+        eigenvalues[eigenvalues < 0] = epsilon
+        local_cov = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+        inv_local_cov = pinv(local_cov)
+        
+        # Compute Mahalanobis distance for this point
+        delta = feature_matrix[i] - local_mean
+        mahalanobis_distances[i] = np.sqrt(delta.T @ inv_local_cov @ delta)
 
-    # Regularizar matriz de covariância para evitar singularidade
-    epsilon = 1e-6
-    eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
-    eigenvalues[eigenvalues < 0] = epsilon  # Evita valores negativos
-    covariance_matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
-    inv_covariance = pinv(covariance_matrix)
-
-    # Compute Mahalanobis distances using optimized vectorized operations
-    delta = feature_matrix - mean_vector
-    mahalanobis_distances = np.sqrt(np.sum(delta @ inv_covariance * delta, axis=1))
-
-    # Calcular o KDE para encontrar o pico da distribuição
+    # Step 3: Find outliers using KDE peak detection
     kde = gaussian_kde(mahalanobis_distances)
     x_vals = np.linspace(min(mahalanobis_distances), max(mahalanobis_distances), 1000)
     density = kde(x_vals)
-    
-    # Encontrar o pico (ponto de maior densidade)
     peak = x_vals[np.argmax(density)]
 
-    # Calcular a média e o desvio padrão após o pico
+    # Threshold = peak + std of distances after the peak
     distances_after_peak = mahalanobis_distances[mahalanobis_distances > peak]
-    if len(distances_after_peak) > 0:
-        std_after_peak = np.std(distances_after_peak)
-    else:
-        std_after_peak = np.std(mahalanobis_distances)  # Fallback
+    std_after_peak = np.std(distances_after_peak) if len(distances_after_peak) > 0 else np.std(mahalanobis_distances)
+    threshold = peak + std_after_peak
 
-    # Definir threshold como o pico + desvios padrão
-    threshold_mahalanobis = peak + std_after_peak
+    # Step 4: Identify outliers
+    outliers_idx = np.where(mahalanobis_distances > threshold)[0]
+    outliers_list = [image_names[idx] for idx in outliers_idx]
 
-    # Plot distribution before selecting outliers
-    plot_mahalanobis_distribution(mahalanobis_distances, threshold_mahalanobis, plot_name)
+    # (Optional) Plot distribution
+    plot_mahalanobis_distribution(mahalanobis_distances, threshold, plot_name)
 
-    # Define outliers using Mahalanobis threshold
-    outliers_idx = np.where(mahalanobis_distances > threshold_mahalanobis)[0]
-
-    # Move outliers to separate directory
-    outliers_list = []
-    for idx in tqdm(outliers_idx, desc="📦 Getting outliers"):
-        outliers_list.append(image_names[idx])
     return outliers_list

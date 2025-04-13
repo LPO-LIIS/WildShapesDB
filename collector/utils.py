@@ -133,8 +133,8 @@ def preprocess_image(image_data):
     # Open the image with Pillow
     image = Image.open(BytesIO(image_data)).convert("RGB")
 
-    # Resize the image to 128x128
-    image = image.resize((128, 128))
+    # Resize the image to 224x224
+    image = image.resize((224, 224))
 
     # Return the preprocessed image as bytes
     buffered = BytesIO()

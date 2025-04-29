@@ -7,6 +7,8 @@ from classifier.data import load_best_dataloaders, set_seed
 import torch.optim as optim
 import torch._dynamo
 
+# Desativa operações oneDNN do TensorFlow para evitar diferenças numéricas
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 if __name__ == "__main__":
     torch._dynamo.config.cache_size_limit = 64
@@ -20,7 +22,7 @@ if __name__ == "__main__":
     print(f"Detected {available_gpus} GPUs")
 
     # Carregar os melhores hiperparâmetros encontrados pela otimização
-    best_params_path = os.path.join("optimization_results","best_hyperparameters.pt")
+    best_params_path = os.path.join("results","best_hyperparameters.pt")
     if not os.path.exists(best_params_path):
         raise FileNotFoundError(f"❌ Arquivo {best_params_path} não encontrado! Rode a otimização primeiro.")
     

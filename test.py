@@ -1,3 +1,4 @@
+import os
 import cv2
 import torch
 import torchvision.transforms as transforms
@@ -12,7 +13,8 @@ device = torch.device("cpu")
 model = Shape2DClassifier(
     num_classes=9
 )  # Ajuste o número de classes conforme necessário
-model.load_state_dict(torch.load("shape2d_classifier.pth", map_location=device))
+new_state_dict = torch.load("2dWildShapes.pth", map_location=device)
+model.load_state_dict(new_state_dict) 
 model.to(device)
 model.eval()
 

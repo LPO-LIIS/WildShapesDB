@@ -7,6 +7,8 @@ from tqdm import tqdm
 import os
 from classifier.model import Shape2DClassifier
 
+# Desativa operações oneDNN do TensorFlow para evitar diferenças numéricas
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 def train_model(
     model,
@@ -107,11 +109,17 @@ def train_model(
 
                 val_loss += loss.item()
                 _, predicted = outputs.max(1)
-                all_val_preds.extend(predicted.cpu().numpy())
-                all_val_labels.extend(labels.cpu().numpy())
+                all_val_preds.append(predicted)
+                all_val_labels.append(labels)
 
         val_loss /= len(val_loader)  # Normalização
-        val_f1 = f1_score(all_val_labels, all_val_preds, average="weighted")
+        
+        # Concatena todas as previsões e rótulos como tensores na GPU
+        all_val_preds = torch.cat(all_val_preds)
+        all_val_labels = torch.cat(all_val_labels)
+        
+        # Move para CPU apenas na hora de calcular métricas
+        val_f1 = f1_score(all_val_labels.cpu(), all_val_preds.cpu(), average="weighted")
 
         if epoch > 0:
             scheduler.step()

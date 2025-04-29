@@ -2,8 +2,6 @@ from pathlib import Path
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm.auto import tqdm
 from cleaner.feature_extractor import extract_features_from_images
 from evaluator.metrics import pca_variance, centroid_distance, compute_ssim
 
